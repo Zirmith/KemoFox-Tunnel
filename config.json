@@ -3,5 +3,5 @@
     "publicHost": "localhost",
     "initialPublicPort": 9000,
     "region": "USA",
-    "apiKeyFile": "api_keys.json"
-  }
+    "databaseFile": "tunnels.db"
+}
