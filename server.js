@@ -27,35 +27,13 @@ const db = new sqlite3.Database(dbFilePath, (err) => {
                 console.error(`Error checking table info: ${err.message}`);
                 return;
             }
+            
             if (!row) {
                 // api_keys table doesn't exist, create it with ip_address column
-                db.run(`
-                    CREATE TABLE api_keys (
-                        id TEXT PRIMARY KEY,
-                        user TEXT,
-                        mac_address TEXT,
-                        ip_address TEXT,  -- Add ip_address column
-                        created_at TEXT
-                    )
-                `, (err) => {
-                    if (err) {
-                        console.error(`Error creating api_keys table: ${err.message}`);
-                    } else {
-                        console.log('api_keys table created successfully');
-                    }
-                });
+                createApiKeysTable();
             } else if (!row.ip_address) {
                 // api_keys table exists but ip_address column is missing, add it
-                db.run(`
-                    ALTER TABLE api_keys
-                    ADD COLUMN ip_address TEXT
-                `, (err) => {
-                    if (err) {
-                        console.error(`Error adding ip_address column: ${err.message}`);
-                    } else {
-                        console.log('ip_address column added to api_keys table');
-                    }
-                });
+                addIpAddressColumn();
             } else {
                 console.log('api_keys table and ip_address column already exist');
             }
@@ -79,6 +57,39 @@ const db = new sqlite3.Database(dbFilePath, (err) => {
         });
     }
 });
+
+// Function to create api_keys table with ip_address column
+function createApiKeysTable() {
+    db.run(`
+        CREATE TABLE api_keys (
+            id TEXT PRIMARY KEY,
+            user TEXT,
+            mac_address TEXT,
+            ip_address TEXT,
+            created_at TEXT
+        )
+    `, (err) => {
+        if (err) {
+            console.error(`Error creating api_keys table: ${err.message}`);
+        } else {
+            console.log('api_keys table created successfully with ip_address column');
+        }
+    });
+}
+
+// Function to add ip_address column to api_keys table
+function addIpAddressColumn() {
+    db.run(`
+        ALTER TABLE api_keys
+        ADD COLUMN ip_address TEXT
+    `, (err) => {
+        if (err) {
+            console.error(`Error adding ip_address column: ${err.message}`);
+        } else {
+            console.log('ip_address column added to api_keys table');
+        }
+    });
+}
 
 
 app.use(express.json());
