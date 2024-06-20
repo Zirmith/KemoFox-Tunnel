@@ -1,0 +1,7 @@
+{
+    "port": 8000,
+    "publicHost": "localhost",
+    "initialPublicPort": 9000,
+    "region": "USA",
+    "apiKeyFile": "api_keys.json"
+  }
