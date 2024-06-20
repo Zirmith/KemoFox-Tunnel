@@ -55,28 +55,34 @@ const getExternalIP = async () => {
 };
 
 // Endpoint to generate a new API key
-app.post('/generate-api-key', (req, res) => {
+app.post('/generate-api-key', async (req, res) => {
     const { user } = req.body;
 
     if (!user) {
         return res.status(400).json({ error: 'Missing user' });
     }
 
-    const apiKey = uuidv4();
-    const macAddress = getmac();
-    const createdAt = new Date().toISOString();
+    try {
+        const apiKey = uuidv4();
+        const externalIP = await getExternalIP();
+        const createdAt = new Date().toISOString();
 
-    db.run(`
-        INSERT INTO api_keys (id, user, mac_address, created_at) 
-        VALUES (?, ?, ?, ?)
-    `, [apiKey, user, macAddress, createdAt], function (err) {
-        if (err) {
-            return res.status(500).json({ error: 'Failed to generate API key' });
-        }
+        db.run(`
+            INSERT INTO api_keys (id, user, ip_address, created_at) 
+            VALUES (?, ?, ?, ?)
+        `, [apiKey, user, externalIP, createdAt], function (err) {
+            if (err) {
+                return res.status(500).json({ error: 'Failed to generate API key' });
+            }
 
-        res.json({ message: 'API key generated successfully!', apiKey });
-    });
+            res.json({ message: 'API key generated successfully!', apiKey });
+        });
+    } catch (error) {
+        console.error('Error generating API key:', error);
+        return res.status(500).json({ error: 'Failed to generate API key' });
+    }
 });
+
 
 // Middleware to validate API key
 const validateApiKey = (req, res, next) => {
@@ -191,6 +197,30 @@ app.post('/stop', validateApiKey, (req, res) => {
         }
 
         res.json({ message: 'Tunnel stopped successfully!' });
+    });
+});
+
+// Middleware to retrieve API key and user based on client IP
+const retrieveApiKeyAndUser = async (req, res, next) => {
+    const externalIP = await getExternalIP();
+
+    db.get(`SELECT * FROM api_keys WHERE ip_address = ?`, [externalIP], (err, row) => {
+        if (err || !row) {
+            return res.status(403).json({ error: 'No API key found for this IP' });
+        }
+
+        req.apiKey = row.id;
+        req.user = row.user;
+        next();
+    });
+};
+
+
+// Endpoint to get API key and user based on client IP
+app.get('/mykey', retrieveApiKeyAndUser, (req, res) => {
+    res.json({
+        apiKey: req.apiKey,
+        user: req.user
     });
 });
 
