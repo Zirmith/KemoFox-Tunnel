@@ -1,6 +1,6 @@
 {
     "port": 8000,
-    "publicHost": "localhost",
+    "publicHost": "https://kemofox.onrender.com",
     "initialPublicPort": 9000,
     "region": "USA",
     "databaseFile": "tunnels.db"
