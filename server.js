@@ -21,14 +21,47 @@ const db = new sqlite3.Database(dbFilePath, (err) => {
     if (err) {
         console.error(`Error opening database: ${err.message}`);
     } else {
-        db.run(`
-            CREATE TABLE IF NOT EXISTS api_keys (
-                id TEXT PRIMARY KEY,
-                user TEXT,
-                mac_address TEXT,
-                created_at TEXT
-            )
-        `);
+        // Check if the ip_address column exists in api_keys table
+        db.get(`PRAGMA table_info(api_keys)`, (err, row) => {
+            if (err) {
+                console.error(`Error checking table info: ${err.message}`);
+                return;
+            }
+            if (!row) {
+                // api_keys table doesn't exist, create it with ip_address column
+                db.run(`
+                    CREATE TABLE api_keys (
+                        id TEXT PRIMARY KEY,
+                        user TEXT,
+                        mac_address TEXT,
+                        ip_address TEXT,  -- Add ip_address column
+                        created_at TEXT
+                    )
+                `, (err) => {
+                    if (err) {
+                        console.error(`Error creating api_keys table: ${err.message}`);
+                    } else {
+                        console.log('api_keys table created successfully');
+                    }
+                });
+            } else if (!row.ip_address) {
+                // api_keys table exists but ip_address column is missing, add it
+                db.run(`
+                    ALTER TABLE api_keys
+                    ADD COLUMN ip_address TEXT
+                `, (err) => {
+                    if (err) {
+                        console.error(`Error adding ip_address column: ${err.message}`);
+                    } else {
+                        console.log('ip_address column added to api_keys table');
+                    }
+                });
+            } else {
+                console.log('api_keys table and ip_address column already exist');
+            }
+        });
+
+        // Create tunnels table if it doesn't exist
         db.run(`
             CREATE TABLE IF NOT EXISTS tunnels (
                 id TEXT PRIMARY KEY,
@@ -37,9 +70,16 @@ const db = new sqlite3.Database(dbFilePath, (err) => {
                 api_key TEXT,
                 created_at TEXT
             )
-        `);
+        `, (err) => {
+            if (err) {
+                console.error(`Error creating tunnels table: ${err.message}`);
+            } else {
+                console.log('tunnels table created successfully');
+            }
+        });
     }
 });
+
 
 app.use(express.json());
 
@@ -57,6 +97,7 @@ const getExternalIP = async () => {
 // Endpoint to generate a new API key
 app.post('/generate-api-key', async (req, res) => {
     const { user } = req.body;
+    console.log('User:', user); // Log user value for debugging
 
     if (!user) {
         return res.status(400).json({ error: 'Missing user' });
@@ -72,16 +113,18 @@ app.post('/generate-api-key', async (req, res) => {
             VALUES (?, ?, ?, ?)
         `, [apiKey, user, externalIP, createdAt], function (err) {
             if (err) {
+                console.error('Database insertion error:', err.message); // Log database insertion error
                 return res.status(500).json({ error: 'Failed to generate API key' });
             }
 
             res.json({ message: 'API key generated successfully!', apiKey });
         });
     } catch (error) {
-        console.error('Error generating API key:', error);
+        console.error('Error generating API key:', error); // Log any other errors
         return res.status(500).json({ error: 'Failed to generate API key' });
     }
 });
+
 
 
 // Middleware to validate API key
@@ -132,9 +175,12 @@ app.post('/register', validateApiKey, async (req, res) => {
         res.json({
             message: 'Tunnel created successfully!',
             tunnelId,
-            publicAddress: `${externalIP}:${publicPort}`,
+            publicAddress: `  https://kemofox.onrender.com:${publicPort}`,
+           // publicAddress: `${externalIP}:${publicPort}`,
             region: config.region,
-            statusPage: `http://${externalIP}:${PORT}/status/${tunnelId}`
+          
+            //statusPage: `http://${externalIP}:${PORT}/status/${tunnelId}`
+            statusPage: `https://kemofox.onrender.com:${PORT}/status/${tunnelId}`
         });
 
         // Start forwarding traffic from public port to local port
