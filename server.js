@@ -6,6 +6,7 @@ const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
 const axios = require('axios');
 const getmac = require('getmac').default;
+const { createProxyMiddleware } = require('http-proxy-middleware');
 
 // Load configuration
 const config = JSON.parse(fs.readFileSync('config.json'));
@@ -196,8 +197,35 @@ app.post('/register', validateApiKey, async (req, res) => {
     });
 });
 
+
+
 // Function to start forwarding traffic
 const startForwarding = (tunnelId) => {
+    const { localPort, publicPort } = tunnels[tunnelId];
+
+    const app = express();
+
+    // Proxy middleware options
+    const proxyOptions = {
+        target: `http://localhost:${localPort}`,
+        changeOrigin: true, // Needed for virtual hosted sites
+        ws: true, // Proxy websockets
+        logLevel: 'debug'
+    };
+
+    // Proxy all requests to the local server
+    app.use('*', createProxyMiddleware(proxyOptions));
+
+    const server = app.listen(publicPort, () => {
+        console.log(`Tunnel ${tunnelId} is forwarding traffic from public port ${publicPort} to local port ${localPort}`);
+    });
+
+    tunnels[tunnelId].server = server;
+};
+
+
+// Function to start forwarding traffic
+const startForwarding2 = (tunnelId) => {
     const { localPort, publicPort } = tunnels[tunnelId];
 
     const server = net.createServer((socket) => {
