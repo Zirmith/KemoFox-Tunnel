@@ -186,12 +186,9 @@ app.post('/register', validateApiKey, async (req, res) => {
         res.json({
             message: 'Tunnel created successfully!',
             tunnelId,
-            publicAddress: `  https://kemofox.onrender.com:${publicPort}`,
-           // publicAddress: `${externalIP}:${publicPort}`,
+            publicAddress: `https://kemofox.onrender.com/${tunnelId}`, // Public address without port
             region: config.region,
-          
-            //statusPage: `http://${externalIP}:${PORT}/status/${tunnelId}`
-            statusPage: `https://kemofox.onrender.com:${PORT}/status/${tunnelId}`
+            statusPage: `https://kemofox.onrender.com/status/${tunnelId}` // Status page URL
         });
 
         // Start forwarding traffic from public port to local port
@@ -282,7 +279,7 @@ app.get('/mykey', retrieveApiKeyAndUser, (req, res) => {
 });
 
 // Endpoint to get tunnel status
-app.get('/status/:tunnelId', (req, res) => {
+app.get('/:tunnelId', (req, res) => {
     const { tunnelId } = req.params;
 
     db.get(`SELECT * FROM tunnels WHERE id = ?`, [tunnelId], (err, tunnel) => {
@@ -292,7 +289,7 @@ app.get('/status/:tunnelId', (req, res) => {
 
         res.json({
             tunnelId,
-            publicAddress: `${config.publicHost}:${tunnel.public_port}`,
+            publicAddress: `https://kemofox.onrender.com/${tunnelId}`, // Public address without port
             localPort: tunnel.local_port,
             region: config.region
         });
@@ -303,5 +300,3 @@ app.listen(PORT, async () => {
     const externalIP = await getExternalIP();
     console.log(`Tunneling server is running on port ${PORT} with external IP ${externalIP}`);
 });
-
-   
